@@ -1,16 +1,19 @@
 from Tkinter import *
-import time
 
 root = Tk()
+root.title('Timer')
 
-class Timer():
-	def __init__(self):
-		self.label = Label(text="")
-		self.label.pack()
-		self.update_clock()
-	def update_clock(self):
-		now = time.strftime("%H:%M:%S")
-		self.label.configure(text=now)
-		self.after(1000, self.update_clock)
-tajm = Timer()
+sec = 0
+
+def tick():
+    global sec
+    sec += 1
+    time['text'] = sec
+    # Take advantage of the after method of the Label
+    time.after(1000, tick)
+
+time = Label(root, fg='green')
+time.pack()
+tick()
+
 root.mainloop()

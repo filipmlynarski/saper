@@ -22,7 +22,8 @@ if not os.path.isfile('parameters.txt'):
 	file = open('parameters.txt', 'w')
 	file.write('size 0\n')
 	file.close()
-
+stop = False
+sec = 0
 parameters={}
 def update_parameters():
 	for i in open('parameters.txt').read().splitlines():
@@ -38,15 +39,24 @@ def change_size():
 	file.close()
 	update_parameters()
 
-def time_label(t):
-	global game_time
+def time_lable():
+	global sec
+	print stop
+	if not stop:
+		sec += 1
+		Time_table['text'] = sec
+		# Take advantage of the after method of the Label
+		Time_table.after(1000, time_lable)
+	else:
+		sec = 0
+'''	global game_time
 	while True:
 		time.sleep(1)
 		game_time += 1
 		Button(root, text='test').grid(row=2)
 		Time_table = Label(stats, text=str(game_time), fg='red', bg='black', width=5, height=1)
 		Time_table.grid(column=4, row=0)
-		#print str(game_time)
+		#print str(game_time)'''
 def game_bar():
 	clear()
 	menubar = Menu(root)
@@ -76,8 +86,9 @@ def bombs_around(x, y):
 			ret += 1
 	return [ret, [i for i in to_check if i != [x, y] and current_grid[i[0]][i[1]] < 10]]
 def modify_grid(x, y, event, flag=False, rec=False):
-	if not p.is_alive() and game_time == 0:
-		p.start()
+	print sec
+	if sec == 0:
+		time_lable()
 	global bombs_found, stats
 	end = False
 	if not flag:
@@ -150,13 +161,12 @@ def show_grid(do_x='False', do_y='False', end=False):
 		elif w == 3:
 			Label(game, image=clicked_bomb, width=30, height=30).grid(column=w_i, row=h_i)
 	if done():
-		print str(game_time)
+		stop = True
 
 def create_game():
 	clear()
 	game_bar()
-	global game, bomb_grid, current_grid, bombs_found, stats, bombs, to_find, p, game_time
-	game_time = 0
+	global game, bomb_grid, current_grid, bombs_found, stats, bombs, to_find, p, Time_table
 	if parameters['size'] == '0':
 		w, h, bombs = 10*30, 10*30, 10
 	elif parameters['size'] == '1':
@@ -176,10 +186,9 @@ def create_game():
 	Restart = Button(stats, text='restart', width=10, height=1, command=create_game)
 	Restart.grid(column=2, row=0)
 	Label(stats, width=5).grid(column=3, row=0)
-	Time_table = Label(stats, text='00', fg='red', bg='black', width=5, height=1)
+	Time_table = Label(stats, text='0', fg='red', bg='black', width=5, height=1)
 	Time_table.grid(column=4, row=0)
-	p = Process(target=time_label, args=('bob',))
-
+	sec = 0
 	bomb_grid = []
 	for high in range(h/30):
 		bomb_grid.append([])
