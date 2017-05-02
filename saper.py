@@ -79,7 +79,6 @@ def show_stats():
 	tkMessageBox.showinfo('Info', message)
 
 def game_bar():
-	clear()
 	menubar = Menu(root)
 	filemenu = Menu(menubar, tearoff=0)
 	filemenu.add_command(label="New Game", command=single_mode)
@@ -111,84 +110,86 @@ def bombs_around(x, y):
 		if bomb_grid[i[0]][i[1]] == 1:
 			ret += 1
 	return [ret, [i for i in to_check if i != [x, y] and current_grid[i[0]][i[1]] < 10]]
-def modify_grid(x, y, event, flag=False, rec=False):
-	if sec == -1:
-		time_lable()
-	global bombs_found, stats
-	end = False
-	if not flag:
-		if bomb_grid[x][y] == 1:
-			end = True
-			current_grid[x][y] = 3
-			global stop
-			stop = True
-			if not sec < 1:
-				update_stats(parameters['size'])
-			show_grid('False', 'False', end)
-		elif current_grid[x][y] != 1:
-			around = bombs_around(x, y)
-			current_grid[x][y] = around[0] + 10
-			if around[0] == 0:
-				for i in around[1]:
-					modify_grid(i[0], i[1], event, False, True)
-				if not rec and not end:
-					show_grid()
-			elif not rec and not end:
-				show_grid(x, y)
-	else:
-		if current_grid[x][y] == 0:
-			bombs_found += 1
-			current_grid[x][y] = 1
-		else:
-			bombs_found -= 1
-			current_grid[x][y] = 0
-		Bombs = Label(stats, text=str(bombs - bombs_found), fg='red', bg='black', width=5, height=1)
-		Bombs.grid(column=0, row=0)
-		show_grid(x, y)
+def flags_around(x, y):
+	to_check = [[i, j] for i in range(x-1, x+2) for j in range(y-1, y+2) if 0 <= i < len(current_grid) and 0 <= j < len(current_grid[0])]
+	ret, ret2 = 0, []
+	for i in to_check:
+		if current_grid[i[0]][i[1]] == 1:
+			ret += 1
+		elif current_grid[i[0]][i[1]] == 0:
+			ret2.append(i)
+	return [ret, ret2]
 
-def show_grid(do_x='False', do_y='False', end=False):
-	if do_x == 'False':
-		for widget in game.winfo_children():
-			widget.destroy()
-		for h_idx, h in enumerate(current_grid):
-			for w_idx, w in enumerate(h):
-				if w == 0:
-					burton = Label(game, image=not_clicked, width=30, height=30)
+
+def modify_grid(x, y, event='', flag=False):
+	global stop
+	if not stop:
+		if sec == -1:
+			time_lable()
+		global bombs_found, stats
+		end = False
+		if current_grid[x][y] > 10:
+			f_around = flags_around(x, y)
+			if f_around[0] == current_grid[x][y] - 10:
+				for to_click in f_around[1]:
+					modify_grid(to_click[0], to_click[1])
+		elif not flag:
+			if bomb_grid[x][y] == 1:
+				end = True
+				current_grid[x][y] = 3
+				stop = True
+				if not sec < 1:
+					update_stats(parameters['size'])
+				show_grid(x, y)
+			else:
+				around = bombs_around(x, y)
+				current_grid[x][y] = around[0] + 10
+				if around[0] == 0:
+					for i in around[1]:
+						modify_grid(i[0], i[1], event, False)
 					if not end:
-						left_click  = partial(modify_grid, h_idx, w_idx)
-						right_click = partial(modify_grid, h_idx, w_idx, True)
-						burton.bind("<Button-1>", left_click)
-						burton.bind("<Button-3>", right_click)
-					burton.grid(column=w_idx, row=h_idx)
-				elif w == 1:
-					burton = Label(game, image=flag, width=30, height=30)
-					if not end:
-						right_click = partial(modify_grid, h_idx, w_idx, True)
-						burton.bind("<Button-3>", right_click)
-					burton.grid(column=w_idx, row=h_idx)
-				elif w > 9:
-					Label(game, image=around[str(w-10)], width=30, height=30).grid(column=w_idx, row=h_idx)
-				elif w == 3:
-					Label(game, image=clicked_bomb, width=30, height=30).grid(column=w_idx, row=h_idx)
-	else:
-		h_i, w_i = do_x, do_y
-		w = current_grid[h_i][w_i]
-		if w == 0:
-			burton = Label(game, image=not_clicked, width=30, height=30)
-			left_click  = partial(modify_grid, h_i, w_i)
-			right_click = partial(modify_grid, h_i, w_i, True)
-			burton.bind("<Button-1>", left_click)
-			burton.bind("<Button-3>", right_click)
-			burton.grid(column=w_i, row=h_i)
-		elif w == 1:
-			burton = Label(game, image=flag, width=30, height=30)
-			right_click = partial(modify_grid, h_i, w_i, True)
-			burton.bind("<Button-3>", right_click)
-			burton.grid(column=w_i, row=h_i)
-		elif w > 9:
-			Label(game, image=around[str(w-10)], width=30, height=30).grid(column=w_i, row=h_i)
-		elif w == 3:
-			Label(game, image=clicked_bomb, width=30, height=30).grid(column=w_i, row=h_i)
+						show_grid(x, y)
+				elif not end:
+					show_grid(x, y)
+		else:
+			if current_grid[x][y] == 0:
+				bombs_found += 1
+				current_grid[x][y] = 1
+			else:
+				bombs_found -= 1
+				current_grid[x][y] = 0
+			Bombs = Label(stats, text=str(bombs - bombs_found), fg='red', bg='black', width=5, height=1)
+			Bombs.grid(column=0, row=0)
+			show_grid(x, y)
+
+def show_grid(do_x, do_y):
+	h_i, w_i = do_x, do_y
+	w = current_grid[h_i][w_i]
+	if w == 0:
+		burton = Label(game, image=not_clicked, width=30, height=30)
+		left_click  = partial(modify_grid, h_i, w_i)
+		right_click = partial(modify_grid, h_i, w_i, True)
+		burton.bind("<Button-1>", left_click)
+		burton.bind("<Button-3>", right_click)
+		burton.grid(column=w_i, row=h_i)
+	elif w == 1:
+		burton = Label(game, image=flag, width=30, height=30)
+		left_click  = partial(modify_grid, h_i, w_i)
+		right_click = partial(modify_grid, h_i, w_i, True)
+		burton.bind("<Button-1>", left_click)
+		burton.bind("<Button-3>", right_click)
+		burton.grid(column=w_i, row=h_i)
+	elif w == 10:
+		Label(game, image=around[str(w-10)], width=30, height=30).grid(column=w_i, row=h_i)
+	elif w > 10:
+		burton = Label(game, image=around[str(w-10)], width=30, height=30)
+		left_click  = partial(modify_grid, h_i, w_i)
+		right_click = partial(modify_grid, h_i, w_i)
+		burton.bind("<Button-1>", left_click)
+		burton.bind("<Button-3>", right_click)
+		burton.grid(column=w_i, row=h_i)
+	elif w == 3:
+		Label(game, image=clicked_bomb, width=30, height=30).grid(column=w_i, row=h_i)
 	if done():
 		if sec != -1:
 			update_stats(parameters['size'], '1', sec)
@@ -235,8 +236,9 @@ def create_game():
 		current_grid.append([])
 		for wdth in range(w/30):
 			current_grid[-1].append(0)
-
-	show_grid()
+	for h_idx in range(h/30):
+		for w_idx in range(w/30):
+			show_grid(h_idx, w_idx)
 
 def single_mode():
 	create_game()
