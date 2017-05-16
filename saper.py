@@ -1,10 +1,15 @@
 import os
 import time
+import socket
 import random
 import tkMessageBox
 from Tkinter import *
 from functools import partial
 from multiprocessing import Process
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_address = ('localhost', 8887)
+sock.connect(server_address)
 
 root = Tk()
 root.option_add('*font', ('verdana', 12, 'bold'))
@@ -18,7 +23,8 @@ flagged_bomb = PhotoImage(file='data/flagged_bomb.png')
 around = {}
 for i in range(0, 9):
 	around[str(i)] = PhotoImage(file='data/' + str(i) + '.png')
-
+if not os.path.isfile('log_info'):
+	open('log_info', 'w')
 if not os.path.isfile('parameters'):
 	file = open('parameters', 'w')
 	file.write('size 0\n')
@@ -62,7 +68,7 @@ def show_stats():
 		i = i.split(' ')
 		if i[1] == '1':
 			stats[int(i[0])][0] += 1
-			if stats[int(i[0])][1] < int(i[2]) or stats[int(i[0])][1] == 0:
+			if stats[int(i[0])][1] > int(i[2]) or stats[int(i[0])][1] == 0:
 				stats[int(i[0])][1] = i[2]
 		stats[int(i[0])][2] += 1
 	message = ''
@@ -75,7 +81,7 @@ def show_stats():
 			message += '\npercantage of winnings: ' + str(int(float(i[0])/i[2]*100))+'%'
 		else:
 			message += '\npercantage of winnings: 0%'
-		message += '\nbest time: ' + str(int(i[1])/60) + 'm' + str(i[1]) + 's'
+		message += '\nbest time: ' + str(int(i[1])/60) + 'm' + str(int(i[1])%60) + 's'
 	tkMessageBox.showinfo('Info', message)
 
 def game_bar():
@@ -120,7 +126,6 @@ def flags_around(x, y):
 			ret2.append(i)
 	return [ret, ret2]
 
-
 def modify_grid(x, y, event='', flag=False):
 	global stop
 	if not stop:
@@ -138,11 +143,16 @@ def modify_grid(x, y, event='', flag=False):
 				end = True
 				current_grid[x][y] = 3
 				stop = True
+				Restart['text'] = u'\u2639'
 				if not sec < 1:
 					update_stats(parameters['size'])
+					Bombs = Label(stats, text=str(bombs - bombs_found), fg='red', bg='black', width=5, height=1)
+					Bombs.grid(column=0, row=0)
 				show_grid(x, y)
 			else:
 				around = bombs_around(x, y)
+				if current_grid[x][y] == 1:
+					bombs_found -= 1
 				current_grid[x][y] = around[0] + 10
 				if around[0] == 0:
 					for i in around[1]:
@@ -174,9 +184,9 @@ def show_grid(do_x, do_y):
 		burton.grid(column=w_i, row=h_i)
 	elif w == 1:
 		burton = Label(game, image=flag, width=30, height=30)
-		left_click  = partial(modify_grid, h_i, w_i)
+		#left_click  = partial(modify_grid, h_i, w_i)
 		right_click = partial(modify_grid, h_i, w_i, True)
-		burton.bind("<Button-1>", left_click)
+		#burton.bind("<Button-1>", left_click)
 		burton.bind("<Button-3>", right_click)
 		burton.grid(column=w_i, row=h_i)
 	elif w == 10:
@@ -191,6 +201,7 @@ def show_grid(do_x, do_y):
 	elif w == 3:
 		Label(game, image=clicked_bomb, width=30, height=30).grid(column=w_i, row=h_i)
 	if done():
+		Restart['text'] = u'\u263b'
 		if sec != -1:
 			update_stats(parameters['size'], '1', sec)
 		global stop
@@ -198,14 +209,8 @@ def show_grid(do_x, do_y):
 
 def create_game():
 	clear()
-	game_bar()
-	global game, bomb_grid, current_grid, bombs_found, stats, bombs, to_find, p, Time_table, sec, stop
-	if parameters['size'] == '0':
-		w, h, bombs = 10*30, 10*30, 10
-	elif parameters['size'] == '1':
-		w, h, bombs = 16*30, 16*30, 40
-	elif parameters['size'] == '2':
-		w, h, bombs = 30*30, 16*30, 99
+	Button(root, text=u'\u2190', command=starting_menu).grid(column=0, row=0)
+	global game, bombs_found, stats, to_find, p, Time_table, sec, stop, Restart
 	to_find = (w/30) * (h/30) - bombs
 	Frame(width=40).grid(column=0, row=0)
 	stats = Frame(root, width=w, height=100)
@@ -216,13 +221,23 @@ def create_game():
 	Bombs = Label(stats, text=str(bombs - bombs_found), fg='red', bg='black', width=5, height=1)
 	Bombs.grid(column=0, row=0)
 	Label(stats, width=5).grid(column=1, row=0)
-	Restart = Button(stats, text='restart', width=10, height=1, command=create_game)
+	Restart = Button(stats, text=u'\u263a', width=1, height=1, command=create_single_game)
 	Restart.grid(column=2, row=0)
 	Label(stats, width=5).grid(column=3, row=0)
 	Time_table = Label(stats, text='0', fg='red', bg='black', width=5, height=1)
 	Time_table.grid(column=4, row=0)
 	sec = -1
 	stop = False
+	game_bar()
+
+def create_single_game():
+	global bomb_grid, current_grid, w, h, bombs
+	if parameters['size'] == '0':
+		w, h, bombs = 10*30, 10*30, 10
+	elif parameters['size'] == '1':
+		w, h, bombs = 16*30, 16*30, 40
+	elif parameters['size'] == '2':
+		w, h, bombs = 30*30, 16*30, 99
 	bomb_grid = []
 	for high in range(h/30):
 		bomb_grid.append([])
@@ -236,17 +251,95 @@ def create_game():
 		current_grid.append([])
 		for wdth in range(w/30):
 			current_grid[-1].append(0)
+	create_game()
 	for h_idx in range(h/30):
 		for w_idx in range(w/30):
 			show_grid(h_idx, w_idx)
+	
+def comunicate(x):
+	sock.sendall(x)
+	data = sock.recv(1024)
+	return eval(data)
 
 def single_mode():
-	create_game()
+	create_single_game()
+
+def sign_in():
+	log = Login_entry.get()
+	pas = Password_entry.get()
+	if len(log) > 5 and len(pas) > 5:
+		status = comunicate(str({'action': 'sign_in', 'login': log, 'password': pas}))
+		if status['status'] == True:
+			file = open('log_info', 'w')
+			file.write(log + '\n' + pas)
+			file.close()
+			Login_entry['bg'] = 'green'
+		else:
+			Login_entry['bg'] = 'red'
+
+def sign_up():
+	log = new_Login_entry.get()
+	pas = new_Password_entry.get()
+	if len(log) > 2 and len(pas) > 2:
+		result = comunicate(str({'action': 'sign_up', 'login': log, 'password': pas}))
+		if result['status'] == True:
+			file = open('log_info', 'w')
+			file.write(log + '\n' + pas)
+			file.close()
+			new_Login_entry['bg'] = 'green'
+		else:
+			new_Login_entry['bg'] = 'red'
+
+def login_page():
+	global Login_entry, Password_entry, new_Login_entry, new_Password_entry
+	Frame(root, width=100).grid(row=0, column=2)
+	Frame(root, height=10).grid(column=0, row=3)
+
+	Label(root, text='Sign in', width=10, anchor=W).grid(row=1, column=1)
+	Label(root, text='Sign up').grid(row=1, column=3)
+
+	Login = Frame(root)
+	Login.grid(column=1, row=2)
+	Password = Frame(root)
+	Password.grid(column=1, row=4)
+
+	Label(Login,    text='login: '   ,width=9, anchor=W).grid(column=0, row=0)
+	Label(Password, text='password: ',width=9, anchor=W).grid(column=0, row=0)
+
+	Login_entry = Entry(Login, width=15)
+	Login_entry.grid(column=1, row=0)
+	Password_entry = Entry(Password, width=15, show='*')
+	Password_entry.grid(column=1, row=0)
+
+	new_Login = Frame(root)
+	new_Login.grid(row=2, column=3)
+	new_Password = Frame(root)
+	new_Password.grid(row=4, column=3)
+
+	Label(new_Login,     text='login: '   ,width=9, anchor=W).grid(column=0, row=0)
+	Label(new_Password,  text='password: ',width=9, anchor=W).grid(column=0, row=0)
+
+	Button(root, text='Login', command=sign_in).grid(column=1, row=5)
+	Button(root, text='Create Account', command=sign_up).grid(column=3, row=5)
+
+	new_Login_entry = Entry(new_Login, width=15)
+	new_Login_entry.grid(column=1, row=0)
+	new_Password_entry = Entry(new_Password, width=15)
+	new_Password_entry.grid(column=1, row=0)
 
 def multi_mode():
 	clear()
+	game_bar()
+	Button(root, text=u'\u2190', command=starting_menu).grid(column=4, row=0)
+	Frame(root, width=40, height=40).grid(column=0, row=0)
+	if len(open('log_info').read().splitlines()) == 2:
+		print 'login saved'
+	else:
+		login_page()
+
 
 def starting_menu():
+	clear()
 	Label(root, height=8).grid(column=0, row=0)
 	Label(root, width=30).grid(column=0, row=1)
 	single = Button(root, text='Singleplayer', bg='green', command=single_mode, width=20, height=3).grid(column=1, row=1)
