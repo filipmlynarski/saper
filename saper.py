@@ -8,7 +8,7 @@ from functools import partial
 from multiprocessing import Process
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_address = ('localhost', 8887)
+server_address = ('localhost', 8888)
 sock.connect(server_address)
 
 root = Tk()
@@ -255,45 +255,92 @@ def create_single_game():
 	for h_idx in range(h/30):
 		for w_idx in range(w/30):
 			show_grid(h_idx, w_idx)
-	
+
+def single_mode():
+	create_single_game()
+
 def comunicate(x):
 	sock.sendall(x)
 	data = sock.recv(1024)
 	return eval(data)
 
-def single_mode():
-	create_single_game()
+def invite(evt):
+    w = evt.widget
+    index = int(w.curselection()[0])
+    value = w.get(index)
+    print 'You selected item %d: "%s"' % (index, value)
+
+def create_friends():
+	global friends, friends_list
+	scrollbar = Scrollbar(root)
+	scrollbar.grid(column=1, row=1)
+	Label(root, text='Online Users', fg='green').grid(row=0, column=0)
+	friends_list = Listbox(root, yscrollcommand = scrollbar.set, name='friends', width=14)
+	friends_list.bind('<<ListboxSelect>>', invite)
+	new = comunicate(str({'action': 'online_users', 'login': my_login}))
+	friends = new['online_users']
+	for friend in friends:
+		if friend != new['me']:
+			print friend
+			print new['me']
+			friends_list.insert(END, friend)
+	friends_list.grid(column=0, row=1)
+	scrollbar.config(command = friends_list.yview)
+
+def update_friends():
+	global friends
+	new = comunicate(str({'action': 'online_users', 'login': my_login}))
+	if new['online_users'] != friends:
+		friends_list.delete(first=0, last=friends_list.size())
+		friends = new['online_users']
+		for friend in friends:
+			if friend != new['me']:
+				print friend
+				print new['me']
+				friends_list.insert(END, friend)
+	root.after(2000, update_friends)
+
+def multi_window():
+	clear()
+	game_bar()
+	create_friends()
+	update_friends()
+
 
 def sign_in():
 	log = Login_entry.get()
 	pas = Password_entry.get()
-	if len(log) > 5 and len(pas) > 5:
+	if len(log) > 3 and len(pas) > 3:
 		status = comunicate(str({'action': 'sign_in', 'login': log, 'password': pas}))
 		if status['status'] == True:
 			file = open('log_info', 'w')
 			file.write(log + '\n' + pas)
 			file.close()
 			Login_entry['bg'] = 'green'
+			multi_window()
 		else:
 			Login_entry['bg'] = 'red'
 
 def sign_up():
-	log = new_Login_entry.get()
-	pas = new_Password_entry.get()
+	log  = new_Login_entry.get()
+	pas  = new_Password_entry.get()
+	nick = new_Nick_Entry.get()
 	if len(log) > 2 and len(pas) > 2:
-		result = comunicate(str({'action': 'sign_up', 'login': log, 'password': pas}))
+		result = comunicate(str({'action': 'sign_up', 'login': log, 'password': pas, 'nick': nick}))
 		if result['status'] == True:
 			file = open('log_info', 'w')
 			file.write(log + '\n' + pas)
 			file.close()
 			new_Login_entry['bg'] = 'green'
+			multi_window()
 		else:
 			new_Login_entry['bg'] = 'red'
 
 def login_page():
-	global Login_entry, Password_entry, new_Login_entry, new_Password_entry
+	global Login_entry, Password_entry, new_Login_entry, new_Password_entry, new_Nick_Entry
 	Frame(root, width=100).grid(row=0, column=2)
 	Frame(root, height=10).grid(column=0, row=3)
+	Frame(root, height=8).grid(column=0, row=5)
 
 	Label(root, text='Sign in', width=10, anchor=W).grid(row=1, column=1)
 	Label(root, text='Sign up').grid(row=1, column=3)
@@ -315,25 +362,37 @@ def login_page():
 	new_Login.grid(row=2, column=3)
 	new_Password = Frame(root)
 	new_Password.grid(row=4, column=3)
+	new_Nick = Frame(root)
+	new_Nick.grid(row=6, column=3)
 
 	Label(new_Login,     text='login: '   ,width=9, anchor=W).grid(column=0, row=0)
 	Label(new_Password,  text='password: ',width=9, anchor=W).grid(column=0, row=0)
+	Label(new_Nick,      text='nick: '    ,width=9, anchor=W).grid(column=0, row=0)
 
-	Button(root, text='Login', command=sign_in).grid(column=1, row=5)
-	Button(root, text='Create Account', command=sign_up).grid(column=3, row=5)
+	Button(root, text='Login', command=sign_in).grid(column=1, row=6)
+	Button(root, text='Create Account', command=sign_up).grid(column=3, row=7)
 
 	new_Login_entry = Entry(new_Login, width=15)
 	new_Login_entry.grid(column=1, row=0)
 	new_Password_entry = Entry(new_Password, width=15)
 	new_Password_entry.grid(column=1, row=0)
+	new_Nick_Entry = Entry(new_Nick, width=15)
+	new_Nick_Entry.grid(column=1, row=0)
 
 def multi_mode():
+	global my_login
+	my_login = open('log_info').read().splitlines()[0]
 	clear()
 	game_bar()
 	Button(root, text=u'\u2190', command=starting_menu).grid(column=4, row=0)
 	Frame(root, width=40, height=40).grid(column=0, row=0)
-	if len(open('log_info').read().splitlines()) == 2:
-		print 'login saved'
+	saved_info = open('log_info').read().splitlines()
+	if False and len(saved_info) == 2:
+		check_login = str({'action': 'sign_in', 'login': saved_info[0], 'password': saved_info[1]})
+		if comunicate(check_login)['status'] == True:
+			multi_window()
+		else:
+			login_page()
 	else:
 		login_page()
 
@@ -342,9 +401,9 @@ def starting_menu():
 	clear()
 	Label(root, height=8).grid(column=0, row=0)
 	Label(root, width=30).grid(column=0, row=1)
-	single = Button(root, text='Singleplayer', bg='green', command=single_mode, width=20, height=3).grid(column=1, row=1)
+	single = Button(root, text='Singleplayer', bg='firebrick2', command=single_mode, width=20, height=3).grid(column=1, row=1)
 	Label(root, width=10).grid(column=2, row=1)
-	multi = Button(root, text='Multiplayer', bg='red', command=multi_mode, width=20, height=3).grid(column=3, row=1)
+	multi = Button(root, text='Multiplayer', bg='royal blue', command=multi_mode, width=20, height=3).grid(column=3, row=1)
 
 update_parameters()
 starting_menu()
