@@ -3,25 +3,30 @@ from copy import deepcopy
 from Tkinter import *
 from functools import partial
 
-root = Tk()
-root.option_add('*font', ('verdana', 12, 'bold'))
-root.title("Saper")
 
 class game:
 
+	def __init__(self, master, size, bombs_map, mode, me=False, nick='', multi_func='', host=''):
 
-	flag         = PhotoImage(file='data/flag.png')
-	not_clicked  = PhotoImage(file='data/not_clicked.png')
-	clicked_bomb = PhotoImage(file='data/clicked_bomb.png')
-	flagged_bomb = PhotoImage(file='data/flagged_bomb.png')
-
-	around_image = []
-	for i in range(0, 9):
-		around_image.append(PhotoImage(file='data/' + str(i) + '.png'))
-
-	def __init__(self, master, size, bombs_map, mode):
-		self.master = master
 		self.mode = mode
+		if self.mode == 'single':
+			self.image_size = 30
+			source = 'data'
+		else:
+			self.multi_func = multi_func
+			self.host = host
+			self.image_size = 20
+			source = 'data/images'
+		self.flag = PhotoImage(file=source + '/flag.png')
+		self.not_clicked = PhotoImage(file=source + '/not_clicked.png')
+		self.clicked_bomb = PhotoImage(file=source + '/clicked_bomb.png')
+		self.flagged_bomb = PhotoImage(file=source + '/flagged_bomb.png')
+		self.around_image = []
+		for i in range(0, 9):
+			self.around_image.append(PhotoImage(file=source + '/' + str(i) + '.png'))
+		self.nick = nick
+		self.me = me
+		self.master = master
 		self.size = size
 		self.status = 'playing'
 		self.create_dimensions()
@@ -39,23 +44,36 @@ class game:
 			self.bombs_map = bombs_map
 		self.create_grid()
 
+	def update_stats(self, size, result='0', t='0'):
+		file = open('stats', 'a+')
+		file.write(str(size) + ' ' + str(result) + ' ' + str(t) + '\n')
+		file.close()
+
 	def update_time(self):
-		print 'here'
 		if self.status == 'playing':
-			print self.playing_time
 			self.playing_time += 1
 			self.time['text'] = self.playing_time
-			self.master.after(1000, self.update_time)
+			self.after = self.master.after(1000, self.update_time)
+
+	def remake(self):
+		self.suicide()
+		self.__init__(self.master, self.size, False, self.mode)
 
 	def bar(self):
 		self.bottomFrame = Frame(self.master)
 		self.bottomFrame.pack(side = BOTTOM)
-		f = ('verdana', 15, 'bold')
-		self.bombs_to_find = Label(self.master, text=str(self.flags), bg='black', fg='red', width=2, height=1, font=f)
-		self.bombs_to_find.pack(side = LEFT, pady=4, padx=8)
-		self.playing_time = -1
-		self.time = Label(self.master, text='0', bg='black', fg='red', width=2, height=1, font=f)
-		self.time.pack(side = RIGHT, pady=4, padx=8)
+		f = ('verdana', 8, 'bold')
+		self.bombs_to_find = Label(self.master, text=str(self.flags), bg='black', fg='red', width=3, font=f)
+		self.bombs_to_find.pack(side = LEFT)
+		if self.mode == 'single':
+			self.remake_button = Button(self.master, text='Remake', command=self.remake)
+			self.remake_button.pack(side = LEFT, padx=self.dimensions[1]/2*self.image_size-90)
+		else:
+			self.nickLabel = Label(self.master, text=self.nick)
+			self.nickLabel.pack(side = LEFT, padx=self.dimensions[1]/2*self.image_size-90)
+		self.playing_time = 0
+		self.time = Label(self.master, text='0', bg='black', fg='red', width=3, font=f)
+		self.time.pack(side = RIGHT)
 
 	def random_bombs(self):
 		self.bombs_map = deepcopy(self.grid)
@@ -73,35 +91,37 @@ class game:
 		self.dimensions = sizes[self.size][:-1]
 
 	def create_grid(self):
-		h = 30*self.dimensions[0]
-		w = 30*self.dimensions[1]
+		h = self.image_size*self.dimensions[0]
+		w = self.image_size*self.dimensions[1]
 		game_frame = Frame(self.bottomFrame, height = h, width = w)
-		#game_frame.grid(column = 0, row = 1)
 		game_frame.pack(side = BOTTOM)
 		self.places = [
-		[Label(game_frame, image=game.not_clicked, width=30, height=30) 
+		[Label(game_frame, image=self.not_clicked, width=self.image_size, height=self.image_size) 
 		for i in range(self.dimensions[1])] 
 		for j in range(self.dimensions[0])
 		]
 		for y in range(self.dimensions[0]):
 			for x in range(self.dimensions[1]):
+				self.places[y][x].grid(row=y, column=x)
 				left_click = partial(self.update_grid, y, x, 1)
 				right_click = partial(self.update_grid, y, x, 2)
 				self.places[y][x].bind("<Button-1>", left_click)
 				self.places[y][x].bind("<Button-3>", right_click)
-				self.places[y][x].grid(row=y, column=x)
+				if self.mode == 'multi' and self.me == False:
+					self.places[y][x].unbind("<Button-1>")
+					self.places[y][x].unbind("<Button-3>")
 
 	def show_grid(self, h, w):
 		value = self.grid[h][w]
 		if value == 0:
-			self.places[h][w]['image'] = game.not_clicked
+			self.places[h][w]['image'] = self.not_clicked
 		elif value == 1:
-			self.places[h][w]['image'] = game.flag
+			self.places[h][w]['image'] = self.flag
 			self.places[h][w].unbind("<Button-1>")
 		elif value == 2:
-			self.places[h][w]['image'] = game.clicked_bomb
+			self.places[h][w]['image'] = self.clicked_bomb
 		elif value >= 10:
-			self.places[h][w]['image'] = game.around_image[value - 10]
+			self.places[h][w]['image'] = self.around_image[value - 10]
 			self.places[h][w].unbind("<Button-3>")
 
 	def bombs_around(self, h, w):
@@ -140,34 +160,42 @@ class game:
 				ret_check.append(i)
 		return [ret, ret_check]
 
-	def update_grid(self, h, w, move, event):
+	def update_grid(self, h, w, move, event=''):
 		if self.status == 'playing':
+			if not event == 'rec' and self.mode == 'multi' and self.me == True:
+				self.multi_func({
+					'action': 'game_move',
+					'me': self.nick,
+					'host': self.host,
+					'move': [h, w, move]
+					})
 			if move == 1:
 				if self.bombs_map[h][w] == 0 and self.grid[h][w] == 0:
 					self.found += 1
 					if self.found == 1:
-						self.update_time()
+						self.after = self.master.after(1000, self.update_time)
 					if self.found == self.to_find:
 						self.status = 'win'
+						self.update_stats(str(self.size), '1', str(self.playing_time))
 					around_this = self.bombs_around(h, w)
 					self.grid[h][w] = 10 + around_this[0]
 					self.show_grid(h, w)
 					if around_this[0] == 0:
 						for i in around_this[1]:
-							self.update_grid(i[0], i[1], 1, event)
+							self.update_grid(i[0], i[1], 1, 'rec')
 				elif self.grid[h][w] > 10:
-					print self.flags_around(h, w)[0] == self.grid[h][w] - 10
 					if self.flags_around(h, w)[0] == self.grid[h][w] - 10:
-						print h, w
 						for i in self.flags_around(h, w)[1]:
-							print i
-							self.update_grid(i[0], i[1], 1, event)
+							self.update_grid(i[0], i[1], 1, 'rec')
 
 				elif self.bombs_map[h][w] == 1:
 					self.status = 'lose'
+					self.update_stats(str(self.size))
 					self.grid[h][w] = 2
 					self.show_grid(h, w)
-					#self.suicide()
+					if self.mode == 'single':
+						self.suicide()
+						self.__init__(self.master, self.size, False, self.mode)
 			elif move == 2:
 				if self.grid[h][w] == 1:
 					self.flags += 1
@@ -183,10 +211,10 @@ class game:
 		for i in range(len(self.places)):
 			for j in range(len(self.places[i])):
 				self.places[len(self.places) - i - 1][i - j - 1].destroy()
-		self.master.destroy()
-
-
-cos1 = Frame(root, bd=10)
-second = game(cos1, 2, [], 'single')
-cos1.grid(row=0, column=0, padx=10, pady=5)
-root.mainloop()
+		self.time.destroy()
+		self.bombs_to_find.destroy()
+		self.remake_button.destroy()
+		try:
+			self.master.after_cancel(self.after)
+		except:
+			pass

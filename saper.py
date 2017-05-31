@@ -4,6 +4,8 @@ import socket
 import random
 import tkMessageBox
 from Tkinter import *
+#from design_tools import *
+from game import game
 from functools import partial
 from multiprocessing import Process
 
@@ -14,30 +16,9 @@ sock.connect(server_address)
 root = Tk()
 root.option_add('*font', ('verdana', 12, 'bold'))
 root.title("Saper")
+root.attributes("-fullscreen", True)
 
-bomb         = PhotoImage(file='data/bomb.png')
-flag         = PhotoImage(file='data/flag.png')
-not_clicked  = PhotoImage(file='data/not_clicked.png')
-clicked_bomb = PhotoImage(file='data/clicked_bomb.png')
-flagged_bomb = PhotoImage(file='data/flagged_bomb.png')
-around = {}
-for i in range(0, 9):
-	around[str(i)] = PhotoImage(file='data/' + str(i) + '.png')
-if not os.path.isfile('log_info'):
-	open('log_info', 'w')
-if not os.path.isfile('parameters'):
-	file = open('parameters', 'w')
-	file.write('size 0\n')
-	file.close()
-if not os.path.isfile('stats'):
-	file = open('stats', 'w')
-	file.close()
 parameters={}
-
-def update_stats(size, result='0', t='0'):
-	file = open('stats', 'a+')
-	file.write(str(size) + ' ' + str(result) + ' ' + str(t) + '\n')
-	file.close()
 
 def update_parameters():
 	for i in open('parameters').read().splitlines():
@@ -52,15 +33,6 @@ def change_size():
 	file.write('size ' + v.get())
 	file.close()
 	update_parameters()
-
-def time_lable():
-	global sec, stop
-	if not stop:
-		sec += 1
-		Time_table['text'] = sec
-		Time_table.after(1000, time_lable)
-	else:
-		sec = -1
 
 def show_stats():
 	stats = [[0, 0, 0, 'Small'],[0, 0, 0, 'Medium'],[0, 0, 0, 'Large']]
@@ -102,162 +74,15 @@ def game_bar():
 
 	root.config(menu=menubar)
 	filemenu.invoke(int(parameters['size']) + 2)
-def done():
-	checked = 0
-	for h in current_grid:
-		for w in h:
-			if w > 9:
-				checked += 1
-	return checked == to_find
-def bombs_around(x, y):
-	to_check = [[i, j] for i in range(x-1, x+2) for j in range(y-1, y+2) if 0 <= i < len(current_grid) and 0 <= j < len(current_grid[0])]
-	ret = 0
-	for i in to_check:
-		if bomb_grid[i[0]][i[1]] == 1:
-			ret += 1
-	return [ret, [i for i in to_check if i != [x, y] and current_grid[i[0]][i[1]] < 10]]
-def flags_around(x, y):
-	to_check = [[i, j] for i in range(x-1, x+2) for j in range(y-1, y+2) if 0 <= i < len(current_grid) and 0 <= j < len(current_grid[0])]
-	ret, ret2 = 0, []
-	for i in to_check:
-		if current_grid[i[0]][i[1]] == 1:
-			ret += 1
-		elif current_grid[i[0]][i[1]] == 0:
-			ret2.append(i)
-	return [ret, ret2]
-
-def modify_grid(x, y, event='', flag=False):
-	global stop
-	if not stop:
-		if sec == -1:
-			time_lable()
-		global bombs_found, stats
-		end = False
-		if current_grid[x][y] > 10:
-			f_around = flags_around(x, y)
-			if f_around[0] == current_grid[x][y] - 10:
-				for to_click in f_around[1]:
-					modify_grid(to_click[0], to_click[1])
-		elif not flag:
-			if bomb_grid[x][y] == 1:
-				end = True
-				current_grid[x][y] = 3
-				stop = True
-				Restart['text'] = u'\u2639'
-				if not sec < 1:
-					update_stats(parameters['size'])
-					Bombs = Label(stats, text=str(bombs - bombs_found), fg='red', bg='black', width=5, height=1)
-					Bombs.grid(column=0, row=0)
-				show_grid(x, y)
-			else:
-				around = bombs_around(x, y)
-				if current_grid[x][y] == 1:
-					bombs_found -= 1
-				current_grid[x][y] = around[0] + 10
-				if around[0] == 0:
-					for i in around[1]:
-						modify_grid(i[0], i[1], event, False)
-					if not end:
-						show_grid(x, y)
-				elif not end:
-					show_grid(x, y)
-		else:
-			if current_grid[x][y] == 0:
-				bombs_found += 1
-				current_grid[x][y] = 1
-			else:
-				bombs_found -= 1
-				current_grid[x][y] = 0
-			Bombs = Label(stats, text=str(bombs - bombs_found), fg='red', bg='black', width=5, height=1)
-			Bombs.grid(column=0, row=0)
-			show_grid(x, y)
-
-def show_grid(do_x, do_y):
-	h_i, w_i = do_x, do_y
-	w = current_grid[h_i][w_i]
-	if w == 0:
-		burton = Label(game, image=not_clicked, width=30, height=30)
-		left_click  = partial(modify_grid, h_i, w_i)
-		right_click = partial(modify_grid, h_i, w_i, True)
-		burton.bind("<Button-1>", left_click)
-		burton.bind("<Button-3>", right_click)
-		burton.grid(column=w_i, row=h_i)
-	elif w == 1:
-		burton = Label(game, image=flag, width=30, height=30)
-		#left_click  = partial(modify_grid, h_i, w_i)
-		right_click = partial(modify_grid, h_i, w_i, True)
-		#burton.bind("<Button-1>", left_click)
-		burton.bind("<Button-3>", right_click)
-		burton.grid(column=w_i, row=h_i)
-	elif w == 10:
-		Label(game, image=around[str(w-10)], width=30, height=30).grid(column=w_i, row=h_i)
-	elif w > 10:
-		burton = Label(game, image=around[str(w-10)], width=30, height=30)
-		left_click  = partial(modify_grid, h_i, w_i)
-		right_click = partial(modify_grid, h_i, w_i)
-		burton.bind("<Button-1>", left_click)
-		burton.bind("<Button-3>", right_click)
-		burton.grid(column=w_i, row=h_i)
-	elif w == 3:
-		Label(game, image=clicked_bomb, width=30, height=30).grid(column=w_i, row=h_i)
-	if done():
-		Restart['text'] = u'\u263b'
-		if sec != -1:
-			update_stats(parameters['size'], '1', sec)
-		global stop
-		stop = True
-
-def create_game():
-	clear()
-	Button(root, text=u'\u2190', command=starting_menu).grid(column=0, row=0)
-	global game, bombs_found, stats, to_find, p, Time_table, sec, stop, Restart
-	to_find = (w/30) * (h/30) - bombs
-	Frame(width=40).grid(column=0, row=0)
-	stats = Frame(root, width=w, height=100)
-	stats.grid(column=1, row=0, padx=100)
-	game = Frame(root, width=w, height=h)
-	game.grid(column=1, row=1)
-	bombs_found = 0
-	Bombs = Label(stats, text=str(bombs - bombs_found), fg='red', bg='black', width=5, height=1)
-	Bombs.grid(column=0, row=0)
-	Label(stats, width=5).grid(column=1, row=0)
-	Restart = Button(stats, text=u'\u263a', width=1, height=1, command=create_single_game)
-	Restart.grid(column=2, row=0)
-	Label(stats, width=5).grid(column=3, row=0)
-	Time_table = Label(stats, text='0', fg='red', bg='black', width=5, height=1)
-	Time_table.grid(column=4, row=0)
-	sec = -1
-	stop = False
-	game_bar()
-
-def create_single_game():
-	global bomb_grid, current_grid, w, h, bombs
-	if parameters['size'] == '0':
-		w, h, bombs = 10*30, 10*30, 10
-	elif parameters['size'] == '1':
-		w, h, bombs = 16*30, 16*30, 40
-	elif parameters['size'] == '2':
-		w, h, bombs = 30*30, 16*30, 99
-	bomb_grid = []
-	for high in range(h/30):
-		bomb_grid.append([])
-		for wdth in range(w/30):
-			bomb_grid[-1].append(0)
-	bombs_locations = random.sample(xrange((w/30) * (h/30)), bombs)
-	for i in bombs_locations:
-		bomb_grid[i/(w/30)][i%(w/30)] = 1
-	current_grid = []
-	for high in range(h/30):
-		current_grid.append([])
-		for wdth in range(w/30):
-			current_grid[-1].append(0)
-	create_game()
-	for h_idx in range(h/30):
-		for w_idx in range(w/30):
-			show_grid(h_idx, w_idx)
 
 def single_mode():
-	create_single_game()
+	clear()
+	update_parameters()
+	game_bar()
+	cos = Frame(root)
+	game(cos, int(parameters['size']), [], 'single')
+	cos.grid()
+	#create_single_game()
 
 def comunicate(x):
 	sock.sendall(x)
@@ -274,7 +99,7 @@ def create_friends():
 	global friends, friends_list
 	scrollbar = Scrollbar(root)
 	scrollbar.grid(column=1, row=1)
-	Label(root, text='Online Users', fg='green').grid(row=0, column=0)
+	Label(root, text='Online Users', fg='green').grid(row=0, column=1)
 	friends_list = Listbox(root, yscrollcommand = scrollbar.set, name='friends', width=14)
 	friends_list.bind('<<ListboxSelect>>', invite)
 	new = comunicate(str({'action': 'online_users', 'login': my_login}))
@@ -284,7 +109,7 @@ def create_friends():
 			print friend
 			print new['me']
 			friends_list.insert(END, friend)
-	friends_list.grid(column=0, row=1)
+	friends_list.grid(column=1, row=1)
 	scrollbar.config(command = friends_list.yview)
 
 def update_friends():
@@ -300,12 +125,43 @@ def update_friends():
 				friends_list.insert(END, friend)
 	root.after(2000, update_friends)
 
+def deselect(x):
+	for i in range(3):
+		if i != x:
+			C[i].deselect()
+
+def send_room():
+	for i in range(len(CheckVars)):
+		if CheckVars[i].get() == 1:
+			comunicate(str({'action': 'create_room', 'size': str(i), 'login': my_login}))
+
+def room_creator():
+	clear()
+	game_bar()
+	Label(root, text='Size ').grid(column=0, row=0)
+	global CheckVars, C
+	CheckVars = [IntVar() for i in range(3)]
+	C, sizes = [], ['small', 'medium', 'big']
+	for idx, i in enumerate(sizes):
+		f = partial(deselect, idx)
+		C.append(Checkbutton(root, text=i, variable = CheckVars[idx],
+		command = f, onvalue = 1, offvalue = 0))
+		C[idx].grid(row=0, column=1 + idx, pady=5, padx=3)
+	Button(root, text='Create Room', command=send_room).grid(row=1, column=1, pady=5, columnspan=2)
+#def show_room():
+
+
 def multi_window():
 	clear()
 	game_bar()
+	Button(root, text='Play', command=room_creator).grid(row=0, column=0)
+	rooms = comunicate(str({'action': 'show_rooms'}))
+	print rooms
+	for idx, i in enumerate(rooms):
+		sizes = ['small', 'medium', 'big']
+		Label(root, text='Host: ' + rooms['host'] + 'size: ' + sizes[rooms['size']] + rooms['users'] + '/6')
 	create_friends()
 	update_friends()
-
 
 def sign_in():
 	log = Login_entry.get()
@@ -322,8 +178,8 @@ def sign_in():
 			Login_entry['bg'] = 'red'
 
 def sign_up():
-	log  = new_Login_entry.get()
-	pas  = new_Password_entry.get()
+	log = new_Login_entry.get()
+	pas = new_Password_entry.get()
 	nick = new_Nick_Entry.get()
 	if len(log) > 2 and len(pas) > 2:
 		result = comunicate(str({'action': 'sign_up', 'login': log, 'password': pas, 'nick': nick}))
@@ -387,7 +243,7 @@ def multi_mode():
 	Button(root, text=u'\u2190', command=starting_menu).grid(column=4, row=0)
 	Frame(root, width=40, height=40).grid(column=0, row=0)
 	saved_info = open('log_info').read().splitlines()
-	if False and len(saved_info) == 2:
+	if len(saved_info) == 2:
 		check_login = str({'action': 'sign_in', 'login': saved_info[0], 'password': saved_info[1]})
 		if comunicate(check_login)['status'] == True:
 			multi_window()
@@ -399,10 +255,7 @@ def multi_mode():
 
 def starting_menu():
 	clear()
-	Label(root, height=8).grid(column=0, row=0)
-	Label(root, width=30).grid(column=0, row=1)
-	single = Button(root, text='Singleplayer', bg='firebrick2', command=single_mode, width=20, height=3).grid(column=1, row=1)
-	Label(root, width=10).grid(column=2, row=1)
+	single = Button(root, text='Singleplayer', bg='firebrick2', command=single_mode, width=20, height=3).grid(column=1, row=1, padx=250, pady=300)
 	multi = Button(root, text='Multiplayer', bg='royal blue', command=multi_mode, width=20, height=3).grid(column=3, row=1)
 
 update_parameters()
