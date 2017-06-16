@@ -3,24 +3,27 @@ from game import game
 from Tkinter import *
 from functools import partial
 
-root = Tk()
-
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_address = ('localhost', 8887)
 sock.connect(server_address)
 
-def clear():
-	for widget in root.winfo_children():
+def clear(x):
+	for widget in x.winfo_children():
 		widget.destroy()
 
 def comunicate(x):
-	print x
 	sock.sendall(str(x))
-	data = sock.recv(2048)
+	BUFF_SIZE = 1024
+	data = ""
+	while True:
+		part = sock.recv(BUFF_SIZE)
+		data += part
+		if len(part) < BUFF_SIZE:
+			break
 	try:
 		return eval(data)
 	except:
-		pass
+		return {}
 
 def my_username():
 	return open('log_info').read().splitlines()[0]
@@ -177,18 +180,20 @@ class show_rooms:
 	
 	def join_room(self, event):
 		self.host = self.roomsList.get(self.roomsList.curselection()[0]).split('/ ')[1]
-		comunicate({
+		respond = comunicate({
 			'action': 'join_room',
 			'host': self.host,
 			'login': me()
 		})
-		clear()
-		show_room(self.main_master, host = self.host)
+		if respond['status']:
+			clear(self.master)
+			show_room(self.main_master, host = self.host)
 
 	def list_rooms(self):
 		self.roomsList.delete(0, self.roomsList.size())
+		sizes = ['small', 'medium', 'big']
 		for room in self.rooms:
-			self.roomsList.insert(END, str(room['size']) + ' / ' + room['host'])
+			self.roomsList.insert(END, sizes[int(room['size'])] + ' / ' + room['host'])
 
 			p = partial(self.join_room)
 			self.roomsList.bind('<<ListboxSelect>>', p)
@@ -206,7 +211,6 @@ class show_room:
 			widget.destroy()
 		self.game_status = False
 		self.new = new
-		self.users_index = {}
 		self.host = host
 		self.nick = me()
 		self.master = master
@@ -226,27 +230,31 @@ class show_room:
 		self.bombs = []
 		self.room_info = self.info()
 		self.size = int(self.room_info['size'])
-		self.exit_room = Button(self.master, text='exit room', command=self.exit_room)
-		self.exit_room.grid(column=2, row=0)
+		self.exit_room_button = Button(self.master, text='exit room', command=self.exit_room)
+		self.exit_room_button.grid(column=2, row=0)
 		self.sizes = [
 			[10, 10],
 			[16, 16],
 			[16, 30]
 		]
-		self.show_boards(True)
+		self.show_boards(True, True)
 
 	def info(self):
 		ret = comunicate({
 				'action': 'show_room',
 				'host': self.host
 				})
-		if self.nick in ret['users']:
+		if 'users' in ret and self.nick in ret['users']:
 			ret['users'].remove(self.nick)
 		return ret
 
-	def show_boards(self, first=False):
+	def show_boards(self, first=False, boards=False):
 		updated_info = self.info()
-		if self.room_info != updated_info or first:
+		if not updated_info['status']:
+			self.exit_room()
+			return
+		if boards and (self.room_info != updated_info or first):
+			self.users_index = {}
 			self.room_info = updated_info
 			self.size = int(self.room_info['size'])
 			self.boards = []
@@ -275,6 +283,20 @@ class show_room:
 						self.boards[-1]['board'].nickLabel['text'] = self.room_info['users'][users_added]
 						users_added += 1
 				self.boards[-1]['Frame'].grid(column = i%2, row = i/2, padx=2, pady=2)
+		elif not boards and (self.room_info != updated_info or first):
+			self.users_index = {}
+			self.room_info = updated_info
+			self.size = int(self.room_info['size'])
+			users_added = 0
+			for i in range(1, 4):
+				if i == 1 and self.new == False:
+					self.users_index[self.room_info['host']] = len(self.boards) - 1
+					self.boards[i]['board'].nickLabel['text'] = self.room_info['host']				
+				elif users_added < len(self.room_info['users']):
+					self.users_index[self.room_info['users'][users_added]] = len(self.boards) - 1
+					self.boards[i]['board'].nickLabel['text'] = self.room_info['users'][users_added]
+					users_added += 1
+
 		if not self.game_status:
 			if comunicate({'action': 'game_status', 'host': self.host})['game_status']:
 				self.game_status = True
@@ -282,7 +304,7 @@ class show_room:
 					'action': 'show_game',
 					'host': self.host
 					})['bombs_map']
-				self.show_boards(True)
+				self.show_boards(True, True)
 				self.current_game = []
 				self.update_board(True)
 			else:
@@ -292,6 +314,13 @@ class show_room:
 		save = comunicate({'action': 'show_game', 'host': self.host})
 		if first:
 			self.current_game = save
+			for i in save:
+				if i != self.nick and i != 'bombs_map':
+					move = save[i][0]
+					self.boards[self.users_index[i]]['board'].update_grid(move[0], move[1], move[2])
+				elif i == self.nick:
+					move = save[i][0]
+					self.boards[0]['board'].update_grid(move[0], move[1], move[2])
 		if self.bombs != save['bombs_map']:
 			self.game_status = False
 			self.current_game = []
@@ -303,7 +332,7 @@ class show_room:
 					for move in save[i][len(self.current_game[i]):]:
 						self.boards[self.users_index[i]]['board'].update_grid(move[0], move[1], move[2])
 			self.current_game = save
-		self.to_kill = self.master.after(1000, self.update_board)
+		self.to_kill = self.master.after(500, self.update_board)
 
 	def exit_room(self):
 		comunicate({
@@ -327,7 +356,7 @@ class main_menu:
 		Label(self.master, text = 'Online Users', fg = 'green').grid(column = 2, row = 0)
 		
 		roomsFrame = Frame(self.master)
-		rooms_class = show_rooms(roomsFrame, root)
+		rooms_class = show_rooms(roomsFrame, self.master)
 		roomsFrame.grid(column = 1, row = 1)
 
 		friendsFrame = Frame(self.master)
@@ -345,7 +374,7 @@ class main_menu:
 			self.C[idx].pack(side=LEFT)
 		self.C[2].select()
 		Button(self.master, text = 'Create Room', 
-			command = lambda: show_room(root, 
+			command = lambda: show_room(self.master, 
 				True, 
 				[i for i in range(len(self.CheckVars)) if self.CheckVars[i].get() == 1][0],
 				me()
@@ -356,15 +385,5 @@ class main_menu:
 		for i in range(3):
 			if i != x:
 				self.C[i].deselect()
-
-
-lFrame = Frame(root)
-sFrame = Frame(root)
-
-sign_in(lFrame, main_menu, [sFrame])
-sign_up(sFrame, main_menu, [lFrame])
-
-lFrame.grid(column = 0, row = 0, sticky = 'n')
-sFrame.grid(column = 1, row = 0, padx=20)
-
-root.mainloop()
+		if not any([self.CheckVars[i].get() for i in range(3)]):
+			self.C[x].select()

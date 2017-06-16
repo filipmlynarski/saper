@@ -115,6 +115,10 @@ class game:
 		value = self.grid[h][w]
 		if value == 0:
 			self.places[h][w]['image'] = self.not_clicked
+			left_click = partial(self.update_grid, h, w, 1)
+			right_click = partial(self.update_grid, h, w, 2)
+			self.places[h][w].bind("<Button-1>", left_click)
+			self.places[h][w].bind("<Button-3>", right_click)
 		elif value == 1:
 			self.places[h][w]['image'] = self.flag
 			self.places[h][w].unbind("<Button-1>")
