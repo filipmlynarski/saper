@@ -4,7 +4,8 @@ from Tkinter import *
 from functools import partial
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_address = ('localhost', 8887)
+#server_address = ('158.69.201.134', 8887)
+server_address = ('localhost', 8888)
 sock.connect(server_address)
 
 def clear(x):
@@ -242,6 +243,7 @@ class show_room:
 	def info(self):
 		ret = comunicate({
 				'action': 'show_room',
+				'me': self.nick,
 				'host': self.host
 				})
 		if 'users' in ret and self.nick in ret['users']:
@@ -302,6 +304,7 @@ class show_room:
 				self.game_status = True
 				self.bombs = comunicate({
 					'action': 'show_game',
+					'me': self.nick,
 					'host': self.host
 					})['bombs_map']
 				self.show_boards(True, True)
@@ -311,7 +314,7 @@ class show_room:
 				self.to_kill = self.master.after(1000, self.show_boards)
 	
 	def update_board(self, first = False):
-		save = comunicate({'action': 'show_game', 'host': self.host})
+		save = comunicate({'action': 'show_game', 'me': self.nick, 'host': self.host})
 		if first:
 			self.current_game = save
 			for i in save:
@@ -335,11 +338,11 @@ class show_room:
 		self.to_kill = self.master.after(500, self.update_board)
 
 	def exit_room(self):
+		self.master.after_cancel(self.to_kill)
 		comunicate({
 			'action': 'exit_room',
 			'login': my_username()
 			})
-		self.master.after_cancel(self.to_kill)
 		main_menu(self.master)
 
 class main_menu:
