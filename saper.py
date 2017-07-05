@@ -14,11 +14,6 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_address = ('localhost', 8888)
 sock.connect(server_address)
 
-#lj = str(133034.29350735096**2)
-#__lj__ = '.'.join([lj[:3], lj[3:5], lj[5:8], lj[8:11]])
-#acrafspA = (__lj__, 8887)
-#sock.connect(_acrafspA)
-
 root = Tk()
 root.option_add('*font', ('verdana', 12, 'bold'))
 root.title("Saper")

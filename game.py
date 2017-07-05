@@ -11,7 +11,7 @@ class game:
 		self.mode = mode
 		if self.mode == 'single':
 			self.image_size = 30
-			source = 'data'
+			source = 'data/'
 		else:
 			self.multi_func = multi_func
 			self.host = host
@@ -193,6 +193,14 @@ class game:
 							self.update_grid(i[0], i[1], 1, 'rec')
 
 				elif self.bombs_map[h][w] == 1:
+					if self.mode == 'multi' and self.me == True:
+						self.multi_func({
+							'action': 'game_move',
+							'action2': True,
+							'me': self.nick,
+							'host': self.host,
+							'move': [h, w, move]
+							})
 					self.status = 'lose'
 					self.update_stats(str(self.size))
 					self.grid[h][w] = 2

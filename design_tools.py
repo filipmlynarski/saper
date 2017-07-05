@@ -8,6 +8,8 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_address = ('localhost', 8888)
 sock.connect(server_address)
 
+nick = ''
+
 def clear(x):
 	for widget in x.winfo_children():
 		widget.destroy()
@@ -26,14 +28,6 @@ def comunicate(x):
 	except:
 		return {}
 
-def my_username():
-	return open('log_info').read().splitlines()[0]
-
-def me():
-	return comunicate({
-		'action': 'online_users',
-		'username': my_username()
-		})['me']
 
 class sign_in:
 
@@ -62,10 +56,14 @@ class sign_in:
 			'username': self.username.get(),
 			'password': self.password.get()
 			})
-		return response['status']
+		return [response['status'], response['nick']]
 
 	def login(self):
-		if self.validate():
+		result = self.validate()
+		if result[0]:
+			global nick
+			nick = result[1]
+			print nick
 			file = open('log_info', 'w')
 			file.write(self.username.get()+'\n'+self.password.get())
 			file.close()
@@ -116,6 +114,9 @@ class sign_up:
 			file.write(self.username.get()+'\n'+self.password.get())
 			file.close()
 			self.after(self.master, self.to_clear)
+			global nick
+			nick = self.nick.get()
+			print nick
 		else:
 			self.uEntry['bg'] = 'red'
 			self.pEntry['bg'] = 'red'
@@ -128,7 +129,6 @@ class show_online:
 		for widget in master.winfo_children():
 			widget.destroy()
 		self.master = master
-		self.username = open('log_info').read().splitlines()[0]
 		self.friends = []
 		self.friendsList = Listbox(self.master)
 		self.friendsList.pack()
@@ -138,10 +138,9 @@ class show_online:
 	def update_friends(self):
 		current_friends = comunicate({
 			'action': 'online_users',
-			'username': self.username
+			'nick': nick
 			})
 		if self.friends != current_friends['online_users']:
-			self.mynick = current_friends['me']
 			self.friends = current_friends['online_users']
 			self.list_friends()
 		self.to_kill = self.master.after(1000, self.update_friends)
@@ -149,7 +148,7 @@ class show_online:
 	def list_friends(self):
 		self.friendsList.delete(0, self.friendsList.size())
 		for friend in self.friends:
-			if friend != self.mynick:
+			if friend != nick:
 				self.friendsList.insert(END, friend)
 
 	def suicide(self):
@@ -184,7 +183,7 @@ class show_rooms:
 		respond = comunicate({
 			'action': 'join_room',
 			'host': self.host,
-			'login': me()
+			'login': nick
 		})
 		if respond['status']:
 			clear(self.master)
@@ -213,19 +212,17 @@ class show_room:
 		self.game_status = False
 		self.new = new
 		self.host = host
-		self.nick = me()
 		self.master = master
-		self.username = open('log_info').read().splitlines()[0]
 		if self.new:
 			p = partial(comunicate, {
 				'action': 'start_game',
-				'host': self.nick
+				'host': nick
 				})
 			Button(self.master, text='Start', command=p).grid(column=2, row=1)
 			self.size = size
 			comunicate({
 				'action': 'create_room',
-				'login': self.username,
+				'nick': nick,
 				'size': str(self.size)
 				})
 		self.bombs = []
@@ -243,11 +240,11 @@ class show_room:
 	def info(self):
 		ret = comunicate({
 				'action': 'show_room',
-				'me': self.nick,
+				'me': nick,
 				'host': self.host
 				})
-		if 'users' in ret and self.nick in ret['users']:
-			ret['users'].remove(self.nick)
+		if 'users' in ret and nick in ret['users']:
+			ret['users'].remove(nick)
 		return ret
 
 	def show_boards(self, first=False, boards=False):
@@ -272,9 +269,9 @@ class show_room:
 					})
 				if i == 0:
 					if self.game_status:
-						self.boards[-1]['board'] = game(self.boards[-1]['Frame'], self.size, self.bombs, 'multi', True, self.nick, comunicate, self.host)
+						self.boards[-1]['board'] = game(self.boards[-1]['Frame'], self.size, self.bombs, 'multi', True, nick, comunicate, self.host)
 					else:
-						self.boards[-1]['board'] = game(self.boards[-1]['Frame'], self.size, self.bombs, 'multi', False, self.nick)
+						self.boards[-1]['board'] = game(self.boards[-1]['Frame'], self.size, self.bombs, 'multi', False, nick)
 				else:
 					self.boards[-1]['board'] = game(self.boards[-1]['Frame'], self.size, self.bombs, 'multi', False)
 					if i == 1 and self.new == False:
@@ -284,6 +281,7 @@ class show_room:
 						self.users_index[self.room_info['users'][users_added]] = len(self.boards) - 1
 						self.boards[-1]['board'].nickLabel['text'] = self.room_info['users'][users_added]
 						users_added += 1
+
 				self.boards[-1]['Frame'].grid(column = i%2, row = i/2, padx=2, pady=2)
 		elif not boards and (self.room_info != updated_info or first):
 			self.users_index = {}
@@ -298,13 +296,15 @@ class show_room:
 					self.users_index[self.room_info['users'][users_added]] = len(self.boards) - 1
 					self.boards[i]['board'].nickLabel['text'] = self.room_info['users'][users_added]
 					users_added += 1
+				else:
+					self.boards[i]['board'].nickLabel['text'] = ''
 
 		if not self.game_status:
 			if comunicate({'action': 'game_status', 'host': self.host})['game_status']:
 				self.game_status = True
 				self.bombs = comunicate({
 					'action': 'show_game',
-					'me': self.nick,
+					'me': nick,
 					'host': self.host
 					})['bombs_map']
 				self.show_boards(True, True)
@@ -314,34 +314,46 @@ class show_room:
 				self.to_kill = self.master.after(1000, self.show_boards)
 	
 	def update_board(self, first = False):
-		save = comunicate({'action': 'show_game', 'me': self.nick, 'host': self.host})
+		save = comunicate({'action': 'show_game', 'me': nick, 'host': self.host})
+		
 		if first:
 			self.current_game = save
 			for i in save:
-				if i != self.nick and i != 'bombs_map':
+				if i != nick and i != 'bombs_map' and i != 'died':
 					move = save[i][0]
 					self.boards[self.users_index[i]]['board'].update_grid(move[0], move[1], move[2])
-				elif i == self.nick:
+				elif i == nick:
 					move = save[i][0]
 					self.boards[0]['board'].update_grid(move[0], move[1], move[2])
-		if self.bombs != save['bombs_map']:
+
+		if not 'bombs_map' in save and not self.info()['status']:
+			self.exit_room()
+			return
+
+		elif not 'bombs_map' in save and self.info()['status']:
+			self.show_boards(True, True)
+			return
+
+		elif self.bombs != save['bombs_map']:
 			self.game_status = False
 			self.current_game = []
 			self.show_boards(True)
 			return
+
 		if self.current_game != save:
 			for i in save:
-				if i != self.nick and i != 'bombs_map':
+				if i != nick and i != 'bombs_map' and i != 'died':
 					for move in save[i][len(self.current_game[i]):]:
 						self.boards[self.users_index[i]]['board'].update_grid(move[0], move[1], move[2])
 			self.current_game = save
+
 		self.to_kill = self.master.after(500, self.update_board)
 
 	def exit_room(self):
 		self.master.after_cancel(self.to_kill)
 		comunicate({
 			'action': 'exit_room',
-			'login': my_username()
+			'nick': nick
 			})
 		main_menu(self.master)
 
@@ -380,7 +392,7 @@ class main_menu:
 			command = lambda: show_room(self.master, 
 				True, 
 				[i for i in range(len(self.CheckVars)) if self.CheckVars[i].get() == 1][0],
-				me()
+				nick
 				)
 			).grid(column = 0, row = 0)
 
