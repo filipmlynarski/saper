@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os
 import time
 import socket
@@ -10,8 +12,8 @@ from functools import partial
 from multiprocessing import Process
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#server_address = ('158.69.201.134', 8887)
-server_address = ('localhost', 8888)
+server_address = ('158.69.201.134', 8888)
+#server_address = ('localhost', 8888)
 sock.connect(server_address)
 
 root = Tk()
@@ -22,7 +24,7 @@ root.title("Saper")
 parameters={}
 
 def update_parameters():
-	for i in open('parameters').read().splitlines():
+	for i in open('data/parameters').read().splitlines():
 		parameters[i.split(' ')[0]] = i.split(' ')[1]
 
 def clear():
@@ -30,14 +32,14 @@ def clear():
 		widget.destroy()
 
 def change_size():
-	file = open('parameters', 'w')
+	file = open('data/parameters', 'w')
 	file.write('size ' + v.get())
 	file.close()
 	update_parameters()
 
 def show_stats():
 	stats = [[0, 0, 0, 'Small'],[0, 0, 0, 'Medium'],[0, 0, 0, 'Large']]
-	for i in open('stats').read().splitlines():
+	for i in open('data/stats').read().splitlines():
 		i = i.split(' ')
 		if i[1] == '1':
 			stats[int(i[0])][0] += 1

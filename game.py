@@ -9,21 +9,22 @@ class game:
 	def __init__(self, master, size, bombs_map, mode, me=False, nick='', multi_func='', host=''):
 
 		self.mode = mode
+		file_type = 'jpg'
 		if self.mode == 'single':
 			self.image_size = 30
-			source = 'data/'
+			source = 'data/images/' + file_type + '/30'
 		else:
 			self.multi_func = multi_func
 			self.host = host
 			self.image_size = 20
-			source = 'data/images'
-		self.flag = PhotoImage(file=source + '/flag.png')
-		self.not_clicked = PhotoImage(file=source + '/not_clicked.png')
-		self.clicked_bomb = PhotoImage(file=source + '/clicked_bomb.png')
-		self.flagged_bomb = PhotoImage(file=source + '/flagged_bomb.png')
+			source = 'data/images/' + file_type + '/20'
+		self.flag = PhotoImage(file=source + '/flag.' + file_type)
+		self.not_clicked = PhotoImage(file=source + '/not_clicked.' + file_type)
+		self.clicked_bomb = PhotoImage(file=source + '/clicked_bomb.' + file_type)
+		self.flagged_bomb = PhotoImage(file=source + '/flagged_bomb.' + file_type)
 		self.around_image = []
 		for i in range(0, 9):
-			self.around_image.append(PhotoImage(file=source + '/' + str(i) + '.png'))
+			self.around_image.append(PhotoImage(file=source + '/' + str(i) + '.' + file_type))
 		self.nick = nick
 		self.me = me
 		self.master = master
@@ -179,6 +180,14 @@ class game:
 					if self.found == 1:
 						self.after = self.master.after(1000, self.update_time)
 					if self.found == self.to_find:
+						if self.mode == 'multi' and self.me == True:
+							self.multi_func({
+								'action': 'game_move',
+								'action2': True,
+								'me': self.nick,
+								'host': self.host,
+								'move': [h, w, move]
+								})
 						self.status = 'win'
 						self.update_stats(str(self.size), '1', str(self.playing_time))
 					around_this = self.bombs_around(h, w)

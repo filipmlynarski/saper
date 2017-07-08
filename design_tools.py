@@ -4,8 +4,8 @@ from Tkinter import *
 from functools import partial
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#server_address = ('158.69.201.134', 8887)
-server_address = ('localhost', 8888)
+server_address = ('158.69.201.134', 8888)
+#server_address = ('localhost', 8888)
 sock.connect(server_address)
 
 nick = ''
@@ -63,8 +63,7 @@ class sign_in:
 		if result[0]:
 			global nick
 			nick = result[1]
-			print nick
-			file = open('log_info', 'w')
+			file = open('data/log_info', 'w')
 			file.write(self.username.get()+'\n'+self.password.get())
 			file.close()
 			self.after(self.master, self.to_clear)
@@ -110,13 +109,12 @@ class sign_up:
 
 	def register(self):
 		if self.validate():
-			file = open('log_info', 'w')
+			file = open('data/log_info', 'w')
 			file.write(self.username.get()+'\n'+self.password.get())
 			file.close()
 			self.after(self.master, self.to_clear)
 			global nick
 			nick = self.nick.get()
-			print nick
 		else:
 			self.uEntry['bg'] = 'red'
 			self.pEntry['bg'] = 'red'
@@ -283,6 +281,7 @@ class show_room:
 						users_added += 1
 
 				self.boards[-1]['Frame'].grid(column = i%2, row = i/2, padx=2, pady=2)
+
 		elif not boards and (self.room_info != updated_info or first):
 			self.users_index = {}
 			self.room_info = updated_info
@@ -331,7 +330,9 @@ class show_room:
 			return
 
 		elif not 'bombs_map' in save and self.info()['status']:
-			self.show_boards(True, True)
+			self.game_status = False
+			self.current_game = []
+			self.show_boards(True)
 			return
 
 		elif self.bombs != save['bombs_map']:
