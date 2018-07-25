@@ -12,8 +12,8 @@ from functools import partial
 from multiprocessing import Process
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_address = ('158.69.201.134', 8888)
-#server_address = ('localhost', 8888)
+#server_address = ('158.69.201.134', 8888)
+server_address = ('localhost', 8888)
 sock.connect(server_address)
 
 root = Tk()
@@ -78,26 +78,39 @@ def game_bar():
 	root.config(menu=menubar)
 	filemenu.invoke(int(parameters['size']) + 2)
 
+def multi_bar():
+	menubar = Menu(root)
+	filemenu = Menu(menubar, tearoff=0)
+
+	Stats = Menu(menubar, tearoff=0)
+	Stats.add_command(label="Show Stats", command=show_stats)
+	menubar.add_cascade(label="Stats", menu=Stats)
+
+	root.config(menu=menubar)
+
 def single_mode():
 	clear()
 	update_parameters()
 	game_bar()
 	cos = Frame(root)
 	game(cos, int(parameters['size']), [], 'single')
-	cos.grid()
-	#create_single_game()
+	cos.grid(pady=20, padx=40)
+	back_button = Button(root, text=u"\u2302", command=starting_menu).grid(column=1, row=0, sticky='N', padx=40, pady=40)
 
 def multi_mode():
 	clear()
+	multi_bar()
 	lFrame = Frame(root)
 	sFrame = Frame(root)
+
+	back_button = Button(root, text=u"\u2302", command=starting_menu)
+	back_button.grid(column=3, row=0, sticky='N', pady=10)
 
 	sign_in(lFrame, main_menu, [sFrame])
 	sign_up(sFrame, main_menu, [lFrame])
 
-	lFrame.grid(column = 0, row = 0, sticky = 'n')
+	lFrame.grid(column = 0, row = 0, padx=20, sticky = 'n')
 	sFrame.grid(column = 1, row = 0, padx=20)
-
 
 def starting_menu():
 	clear()

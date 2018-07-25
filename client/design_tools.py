@@ -4,8 +4,8 @@ from Tkinter import *
 from functools import partial
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_address = ('158.69.201.134', 8888)
-#server_address = ('localhost', 8888)
+#server_address = ('158.69.201.134', 8888)
+server_address = ('localhost', 8888)
 sock.connect(server_address)
 
 nick = ''
@@ -247,7 +247,7 @@ class show_room:
 
 	def show_boards(self, first=False, boards=False):
 		updated_info = self.info()
-		if not updated_info['status']:
+		if not updated_info['game_status']:
 			self.exit_room()
 			return
 		if boards and (self.room_info != updated_info or first):
@@ -272,10 +272,10 @@ class show_room:
 						self.boards[-1]['board'] = game(self.boards[-1]['Frame'], self.size, self.bombs, 'multi', False, nick)
 				else:
 					self.boards[-1]['board'] = game(self.boards[-1]['Frame'], self.size, self.bombs, 'multi', False)
-					if i == 1 and self.new == False:
-						self.users_index[self.room_info['host']] = len(self.boards) - 1
-						self.boards[-1]['board'].nickLabel['text'] = self.room_info['host']				
-					elif users_added < len(self.room_info['users']):
+					#if i == 1 and self.new == False:
+						#self.users_index[self.room_info['host']] = len(self.boards) - 1
+						#self.boards[-1]['board'].nickLabel['text'] = self.room_info['host']				
+					if users_added < len(self.room_info['users']):
 						self.users_index[self.room_info['users'][users_added]] = len(self.boards) - 1
 						self.boards[-1]['board'].nickLabel['text'] = self.room_info['users'][users_added]
 						users_added += 1
@@ -288,15 +288,16 @@ class show_room:
 			self.size = int(self.room_info['size'])
 			users_added = 0
 			for i in range(1, 4):
-				if i == 1 and self.new == False:
-					self.users_index[self.room_info['host']] = len(self.boards) - 1
-					self.boards[i]['board'].nickLabel['text'] = self.room_info['host']				
-				elif users_added < len(self.room_info['users']):
+				self.boards[i]['board'].nickLabel['text'] = ''
+				#if i == 1 and self.new == False:
+					#self.users_index[self.room_info['host']] = len(self.boards) - 1
+					#self.boards[i]['board'].nickLabel['text'] = self.room_info['host']				
+				if users_added < len(self.room_info['users']):
 					self.users_index[self.room_info['users'][users_added]] = len(self.boards) - 1
 					self.boards[i]['board'].nickLabel['text'] = self.room_info['users'][users_added]
 					users_added += 1
-				else:
-					self.boards[i]['board'].nickLabel['text'] = ''
+				#else:
+					#self.boards[i]['board'].nickLabel['text'] = ''
 
 		if not self.game_status:
 			if comunicate({'action': 'game_status', 'host': self.host})['game_status']:
@@ -314,37 +315,38 @@ class show_room:
 	
 	def update_board(self, first = False):
 		save = comunicate({'action': 'show_game', 'me': nick, 'host': self.host})
-		
 		if first:
 			self.current_game = save
-			for i in save:
+			for i in save['moves']:
 				if i != nick and i != 'bombs_map' and i != 'died':
-					move = save[i][0]
+					move = save['moves'][i][0]
 					self.boards[self.users_index[i]]['board'].update_grid(move[0], move[1], move[2])
 				elif i == nick:
-					move = save[i][0]
+					move = save['moves'][i][0]
 					self.boards[0]['board'].update_grid(move[0], move[1], move[2])
 
-		if not 'bombs_map' in save and not self.info()['status']:
+		if not 'bombs_map' in save and not self.info()['game_status']:
 			self.exit_room()
 			return
 
-		elif not 'bombs_map' in save and self.info()['status']:
+		elif not 'bombs_map' in save and self.info()['game_status']:
+			print 1
 			self.game_status = False
 			self.current_game = []
 			self.show_boards(True)
 			return
 
 		elif self.bombs != save['bombs_map']:
+			print 2
 			self.game_status = False
 			self.current_game = []
 			self.show_boards(True)
 			return
 
 		if self.current_game != save:
-			for i in save:
+			for i in save['moves']:
 				if i != nick and i != 'bombs_map' and i != 'died':
-					for move in save[i][len(self.current_game[i]):]:
+					for move in save['moves'][i][len(self.current_game['moves'][i]):]:
 						self.boards[self.users_index[i]]['board'].update_grid(move[0], move[1], move[2])
 			self.current_game = save
 
@@ -368,6 +370,10 @@ class main_menu:
 			widget.destroy()
 
 		self.master = master
+
+		self.logout_button = Button(self.master, text = 'Logout', command = self.logout)
+		self.logout_button.grid(column = 3, row = 0, pady=10, padx=10)
+
 		Label(self.master, text = 'Rooms', fg = 'blue').grid(column = 1, row = 0)
 		Label(self.master, text = 'Online Users', fg = 'green').grid(column = 2, row = 0)
 		
@@ -403,3 +409,14 @@ class main_menu:
 				self.C[i].deselect()
 		if not any([self.CheckVars[i].get() for i in range(3)]):
 			self.C[x].select()
+
+	def logout(self):
+		clear(self.master)
+		lFrame = Frame(self.master)
+		sFrame = Frame(self.master)
+
+		sign_in(lFrame, main_menu, [sFrame])
+		sign_up(sFrame, main_menu, [lFrame])
+
+		lFrame.grid(column = 0, row = 0, padx=20, sticky = 'n')
+		sFrame.grid(column = 1, row = 0, padx=20)

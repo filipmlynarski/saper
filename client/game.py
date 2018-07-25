@@ -1,7 +1,8 @@
 import random
-from copy import deepcopy
 from Tkinter import *
+from copy import deepcopy
 from functools import partial
+from thread import start_new_thread
 
 
 class game:
@@ -46,7 +47,7 @@ class game:
 		self.create_grid()
 
 	def update_stats(self, size, result='0', t='0'):
-		file = open('stats', 'a+')
+		file = open('data/stats', 'a+')
 		file.write(str(size) + ' ' + str(result) + ' ' + str(t) + '\n')
 		file.close()
 
@@ -168,12 +169,13 @@ class game:
 	def update_grid(self, h, w, move, event=''):
 		if self.status == 'playing':
 			if not event == 'rec' and self.mode == 'multi' and self.me == True:
-				self.multi_func({
+				start_new_thread(self.multi_func, ({
 					'action': 'game_move',
 					'me': self.nick,
 					'host': self.host,
 					'move': [h, w, move]
-					})
+					}, ))
+
 			if move == 1:
 				if self.bombs_map[h][w] == 0 and self.grid[h][w] == 0:
 					self.found += 1
@@ -181,13 +183,13 @@ class game:
 						self.after = self.master.after(1000, self.update_time)
 					if self.found == self.to_find:
 						if self.mode == 'multi' and self.me == True:
-							self.multi_func({
+							start_new_thread(self.multi_func, ({
 								'action': 'game_move',
 								'action2': True,
 								'me': self.nick,
 								'host': self.host,
 								'move': [h, w, move]
-								})
+								}, ))
 						self.status = 'win'
 						self.update_stats(str(self.size), '1', str(self.playing_time))
 					around_this = self.bombs_around(h, w)
@@ -203,13 +205,13 @@ class game:
 
 				elif self.bombs_map[h][w] == 1:
 					if self.mode == 'multi' and self.me == True:
-						self.multi_func({
+						start_new_thread(self.multi_func, ({
 							'action': 'game_move',
 							'action2': True,
 							'me': self.nick,
 							'host': self.host,
 							'move': [h, w, move]
-							})
+							} ,))
 					self.status = 'lose'
 					self.update_stats(str(self.size))
 					self.grid[h][w] = 2
