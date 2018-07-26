@@ -13,7 +13,7 @@ from multiprocessing import Process
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #server_address = ('158.69.201.134', 8888)
-server_address = ('localhost', 8888)
+server_address = ('192.168.1.33', 8888)
 sock.connect(server_address)
 
 root = Tk()
