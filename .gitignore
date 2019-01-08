@@ -3,3 +3,6 @@ stats
 log_info
 stats
 
+*.py[cod]
+server/accounts
+server/rooms
