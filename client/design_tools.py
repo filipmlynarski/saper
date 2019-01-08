@@ -4,17 +4,31 @@ from Tkinter import *
 from functools import partial
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#server_address = ('158.69.201.134', 8888)
 server_address = ('localhost', 8888)
-sock.connect(server_address)
-
+#server_address = ('158.69.201.134', 8888)
 nick = ''
+
+def connect():
+	try:
+		sock.connect(server_address)
+	except:
+		connected = False
+	else:
+		connected = True
+
+connected = False
+connect()
 
 def clear(x):
 	for widget in x.winfo_children():
 		widget.destroy()
 
 def comunicate(x):
+	if not connected:
+		connect()
+		if not connected:
+			return {}
+
 	sock.sendall(str(x))
 	BUFF_SIZE = 1024
 	data = ""
