@@ -11,10 +11,10 @@ from game import game
 from functools import partial
 from multiprocessing import Process
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #server_address = ('158.69.201.134', 8888)
-server_address = ('localhost', 8888)
-sock.connect(server_address)
+#server_address = ('localhost', 8888)
+#sock.connect(server_address)
 
 root = Tk()
 root.option_add('*font', ('verdana', 12, 'bold'))
